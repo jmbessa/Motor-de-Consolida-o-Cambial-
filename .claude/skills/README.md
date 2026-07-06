@@ -31,13 +31,14 @@ adversarial**. Ver `CLAUDE.md` e o skill de projeto.
 
 ## Agentes usados
 
-| Agente | Papel |
-|---|---|
-| `lv10-dev` | **Revisão adversarial obrigatória (Fase 3)** — assume que o design está errado e caça falhas silenciosas e piores casos |
-| `Plan` | Desenho de planos de implementação por fatia |
-| `Explore` | Buscas amplas read-only no código |
-| `architect-analyst` | Avaliação de decisões arquiteturais (limites, direção de dependência) |
-| `dev-analyst` | Análise concreta de implementação e casos de borda |
+O único agente **customizado** deste projeto é o `lv10-dev` (em `.claude/agents/`).
+Os demais usados são agentes **built-in** do Claude Code.
+
+| Agente | Tipo | Papel |
+|---|---|---|
+| `lv10-dev` | customizado | **Revisão adversarial obrigatória (Fase 3)** — assume que o design está errado e caça falhas silenciosas e piores casos |
+| `Plan` | built-in | Desenho de planos de implementação por fatia |
+| `Explore` | built-in | Buscas amplas read-only no código |
 
 ## Registro por fatia
 
