@@ -27,3 +27,7 @@ class RespostaInvalida(DomainError):
 
 class MoedaNaoSuportadaPelaFonte(DomainError):
     """A fonte de cotação não fornece a moeda solicitada."""
+
+
+class PersistenciaIndisponivel(DomainError):
+    """Falha ao persistir/ler o resultado (conexão, transação, indisponibilidade do store)."""

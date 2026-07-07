@@ -47,3 +47,9 @@ def test_resposta_invalida_e_domain_error():
 
 def test_moeda_nao_suportada_pela_fonte_e_domain_error():
     assert issubclass(MoedaNaoSuportadaPelaFonte, DomainError)
+
+
+def test_persistencia_indisponivel_e_domain_error():
+    from motor_cambial.domain.errors import DomainError, PersistenciaIndisponivel
+
+    assert issubclass(PersistenciaIndisponivel, DomainError)
