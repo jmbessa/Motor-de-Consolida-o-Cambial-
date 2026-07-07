@@ -156,6 +156,45 @@ def test_parcial_fica_fora_dos_totais_e_vai_para_nao_avaliadas():
     assert nao_avaliada.erro_frankfurter == "fonte fora do ar"
 
 
+def test_aceita_iteravel_de_uso_unico_sem_perder_posicoes():
+    # Um generator (iterável de uso único) não pode ser silenciosamente esgotado
+    # na primeira passada: as posições não-avaliadas ainda devem aparecer.
+    posicoes = [
+        _consolidada("1", Moeda.USD, TipoExposicao.PAYABLE,
+                     Decimal("5000.00"), Decimal("5050.00"), Decimal("50.00"), Decimal("1")),
+        _parcial("2", Moeda.USD, TipoExposicao.PAYABLE),
+    ]
+    visao = consolidar(p for p in posicoes)  # generator, não list
+    assert visao.totais_por_moeda[0].quantidade_posicoes == 1
+    assert len(visao.posicoes_nao_avaliadas) == 1
+    assert visao.posicoes_nao_avaliadas[0].exposicao_id == "2"
+
+
+def test_totais_sao_quantizados_para_duas_casas():
+    # Mesmo que uma parcela chegue com escala irregular (3 casas), o total
+    # agregado sai quantizado em 2 casas (ROUND_HALF_UP).
+    posicao = PosicaoAvaliada(
+        exposicao=Exposicao(
+            id="1", tipo=TipoExposicao.PAYABLE, moeda=Moeda.USD,
+            valor="1000", vencimento=date(2026, 6, 5),
+        ),
+        status=StatusPosicao.CONSOLIDADA,
+        conversao_ptax=_conversao(Fonte.PTAX, Moeda.USD, Decimal("100.005"), TipoTaxa.VENDA),
+        conversao_frankfurter=_conversao(
+            Fonte.FRANKFURTER, Moeda.USD, Decimal("100.004"), TipoTaxa.REFERENCIA
+        ),
+        divergencia=Divergencia(percentual=Decimal("0"), absoluta_brl=Decimal("0.001")),
+    )
+    visao = consolidar([posicao])
+    total_moeda = visao.totais_por_moeda[0]
+    assert total_moeda.total_brl_ptax == Decimal("100.01")   # 100.005 -> 100.01 (HALF_UP)
+    assert total_moeda.total_brl_frankfurter == Decimal("100.00")  # 100.004 -> 100.00
+    total_natureza = visao.posicao_liquida_por_natureza[0]
+    assert total_natureza.total_brl == Decimal("100.01")
+    # a exatidão da escala é observável: 2 casas exatas
+    assert total_moeda.total_brl_ptax.as_tuple().exponent == -2
+
+
 def test_determinismo_mesma_entrada_mesma_saida():
     posicoes = [
         _consolidada("1", Moeda.USD, TipoExposicao.PAYABLE,
