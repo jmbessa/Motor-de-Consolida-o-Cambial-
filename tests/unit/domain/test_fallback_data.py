@@ -3,6 +3,7 @@
 from datetime import date
 
 import pytest
+from pydantic import ValidationError
 
 from motor_cambial.domain.errors import SemCotacaoNaJanela
 from motor_cambial.domain.rules.fallback_data import (
@@ -77,3 +78,34 @@ def test_resultado_fallback_e_imutavel():
     )
     with pytest.raises(Exception):
         resultado.defasagem_dias = 5
+
+
+def test_janela_negativa_e_rejeitada():
+    with pytest.raises(ValueError):
+        resolver_data_efetiva(
+            data_solicitada=date(2026, 6, 5),
+            datas_disponiveis={date(2026, 6, 5)},
+            janela_dias=-1,
+        )
+
+
+def test_datas_disponiveis_vazio_levanta_erro():
+    with pytest.raises(SemCotacaoNaJanela):
+        resolver_data_efetiva(
+            data_solicitada=date(2026, 6, 5),
+            datas_disponiveis=set(),
+        )
+
+
+def test_resultado_fallback_rejeita_incoerencia_fallback_true_com_defasagem_zero():
+    with pytest.raises(ValidationError):
+        ResultadoFallback(
+            data_efetiva=date(2026, 6, 5), houve_fallback=True, defasagem_dias=0
+        )
+
+
+def test_resultado_fallback_rejeita_incoerencia_fallback_false_com_defasagem_positiva():
+    with pytest.raises(ValidationError):
+        ResultadoFallback(
+            data_efetiva=date(2026, 6, 5), houve_fallback=False, defasagem_dias=9
+        )

@@ -2,7 +2,12 @@
 
 import pytest
 
-from motor_cambial.domain.errors import DomainError, SemCotacaoNaJanela, ValorForaDeFaixa
+from motor_cambial.domain.errors import (
+    DomainError,
+    SemCotacaoNaJanela,
+    TipoNaoSuportado,
+    ValorForaDeFaixa,
+)
 
 
 def test_sem_cotacao_na_janela_e_domain_error():
@@ -19,3 +24,7 @@ def test_valor_fora_de_faixa_e_domain_error():
 
 def test_domain_error_e_exception():
     assert issubclass(DomainError, Exception)
+
+
+def test_tipo_nao_suportado_e_domain_error():
+    assert issubclass(TipoNaoSuportado, DomainError)

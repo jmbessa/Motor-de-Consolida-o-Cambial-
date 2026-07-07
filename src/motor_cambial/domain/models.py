@@ -15,6 +15,7 @@ from pydantic import (
 )
 
 from motor_cambial.domain.decimal_utils import DecimalPositivo
+from motor_cambial.domain.errors import TipoNaoSuportado
 from motor_cambial.domain.enums import Fonte, Moeda, TipoExposicao, TipoTaxa
 
 IdNaoVazio = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -99,7 +100,7 @@ class CotacaoNormalizada(BaseModel):
         # Rede de segurança: TipoTaxa(tipo) já restringe aos 3 membros acima;
         # este raise só dispara se um novo membro for adicionado ao enum sem
         # atualizar este método — nunca retorna None silenciosamente.
-        raise ValueError(f"TipoTaxa não tratado em taxa_para: {tipo!r}")
+        raise TipoNaoSuportado(f"TipoTaxa não tratado em taxa_para: {tipo!r}")
 
     @classmethod
     def de_ptax(

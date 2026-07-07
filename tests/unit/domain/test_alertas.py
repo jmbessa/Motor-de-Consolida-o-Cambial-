@@ -2,6 +2,9 @@
 
 from decimal import Decimal
 
+import pytest
+from pydantic import ValidationError
+
 from motor_cambial.domain.rules.alertas import (
     Alerta,
     ConfiguracaoAlerta,
@@ -112,3 +115,30 @@ def test_alerta_e_imutavel():
         assert False, "deveria ter levantado erro de imutabilidade"
     except Exception:
         pass
+
+
+def test_rejeita_diferenca_percentual_float():
+    with pytest.raises(ValidationError):
+        avaliar_alertas(
+            exposicao_id="1",
+            diferenca_percentual=2.0,  # float, não Decimal
+            diferenca_absoluta_brl=Decimal("0"),
+        )
+
+
+def test_rejeita_diferenca_absoluta_float():
+    with pytest.raises(ValidationError):
+        avaliar_alertas(
+            exposicao_id="1",
+            diferenca_percentual=Decimal("0"),
+            diferenca_absoluta_brl=100.0,  # float, não Decimal
+        )
+
+
+def test_rejeita_diferenca_percentual_nan():
+    with pytest.raises(ValidationError):
+        avaliar_alertas(
+            exposicao_id="1",
+            diferenca_percentual=Decimal("NaN"),
+            diferenca_absoluta_brl=Decimal("0"),
+        )

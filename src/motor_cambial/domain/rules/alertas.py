@@ -13,9 +13,11 @@ from __future__ import annotations
 from decimal import Decimal
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 
-from motor_cambial.domain.decimal_utils import DecimalPositivo
+from motor_cambial.domain.decimal_utils import DecimalPositivo, DecimalSeguro
+
+_valida_decimal_seguro = TypeAdapter(DecimalSeguro).validate_python
 
 
 class ConfiguracaoAlerta(BaseModel):
@@ -41,8 +43,8 @@ class Alerta(BaseModel):
 
     exposicao_id: str
     motivo: MotivoAlerta
-    valor_observado: Decimal
-    limite: Decimal
+    valor_observado: DecimalSeguro
+    limite: DecimalSeguro
 
 
 def avaliar_alertas(
@@ -57,6 +59,8 @@ def avaliar_alertas(
     estritamente "acima de" (>): o limite exato não dispara. Uma posição pode
     gerar até 2 alertas (um por motivo).
     """
+    diferenca_percentual = _valida_decimal_seguro(diferenca_percentual)
+    diferenca_absoluta_brl = _valida_decimal_seguro(diferenca_absoluta_brl)
     config = config or ConfiguracaoAlerta()
     alertas: list[Alerta] = []
     if diferenca_percentual > config.limite_percentual:

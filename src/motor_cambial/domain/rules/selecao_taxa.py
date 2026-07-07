@@ -13,6 +13,7 @@ transação no mercado. A regra segue a direção do fluxo de caixa:
 """
 
 from motor_cambial.domain.enums import TipoExposicao, TipoTaxa
+from motor_cambial.domain.errors import TipoNaoSuportado
 
 
 def tipo_taxa_para(tipo: TipoExposicao) -> TipoTaxa:
@@ -27,4 +28,4 @@ def tipo_taxa_para(tipo: TipoExposicao) -> TipoTaxa:
     # Rede de segurança: TipoExposicao(tipo) já restringe aos 3 membros acima;
     # este raise só dispara se um novo membro for adicionado sem atualizar
     # esta função.
-    raise ValueError(f"TipoExposicao não tratado em tipo_taxa_para: {tipo!r}")
+    raise TipoNaoSuportado(f"TipoExposicao não tratado em tipo_taxa_para: {tipo!r}")

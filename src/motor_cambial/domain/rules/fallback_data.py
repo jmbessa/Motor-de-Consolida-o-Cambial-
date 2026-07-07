@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from datetime import date, timedelta
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from motor_cambial.domain.errors import SemCotacaoNaJanela
 
@@ -25,6 +25,14 @@ class ResultadoFallback(BaseModel):
     data_efetiva: date
     houve_fallback: bool
     defasagem_dias: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _valida_coerencia(self) -> "ResultadoFallback":
+        if self.houve_fallback != (self.defasagem_dias > 0):
+            raise ValueError(
+                "houve_fallback deve ser True se e somente se defasagem_dias > 0"
+            )
+        return self
 
 
 def resolver_data_efetiva(
@@ -39,6 +47,8 @@ def resolver_data_efetiva(
     ``SemCotacaoNaJanela`` se nenhuma dessas datas estiver em
     ``datas_disponiveis``.
     """
+    if janela_dias < 0:
+        raise ValueError("janela_dias deve ser >= 0")
     disponiveis = set(datas_disponiveis)
     for defasagem in range(janela_dias + 1):
         candidata = data_solicitada - timedelta(days=defasagem)

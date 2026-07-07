@@ -11,3 +11,7 @@ class SemCotacaoNaJanela(DomainError):
 
 class ValorForaDeFaixa(DomainError):
     """Valor monetário fora da faixa suportada para a operação solicitada."""
+
+
+class TipoNaoSuportado(DomainError):
+    """Um tipo (enum) não foi tratado explicitamente por uma regra — rede de segurança."""
