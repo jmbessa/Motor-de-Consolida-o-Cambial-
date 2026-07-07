@@ -18,3 +18,4 @@ class Config(BaseSettings):
     http_max_retries: int = 2
     cache_dir: Path = Path("data/cache")
     modo_live: bool = False
+    janela_fallback_dias: int = 7

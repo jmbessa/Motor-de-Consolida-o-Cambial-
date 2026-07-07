@@ -21,3 +21,14 @@ def test_config_sobrescreve_por_env(monkeypatch):
     c = Config()
     assert c.modo_live is True
     assert c.http_timeout_s == 3.5
+
+
+def test_config_tem_janela_fallback_default():
+    c = Config()
+    assert c.janela_fallback_dias == 7
+
+
+def test_config_janela_fallback_sobrescreve_por_env(monkeypatch):
+    monkeypatch.setenv("MOTOR_JANELA_FALLBACK_DIAS", "3")
+    c = Config()
+    assert c.janela_fallback_dias == 3
