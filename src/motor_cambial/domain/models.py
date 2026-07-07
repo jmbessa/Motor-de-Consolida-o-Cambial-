@@ -82,15 +82,24 @@ class CotacaoNormalizada(BaseModel):
         return self
 
     def taxa_para(self, tipo: TipoTaxa) -> Decimal:
-        """Retorna a taxa do lado pedido (COMPRA=bid, VENDA=ask).
+        """Retorna a taxa do lado pedido (COMPRA=bid, VENDA=ask, REFERENCIA=mid).
 
         Aceita o membro do enum ou seu valor (ex.: ``"compra"``) e **rejeita**
         qualquer outro input com ``ValueError`` — nunca decide a taxa por um ramo
-        mudo. Funciona igual para qualquer fonte: na Frankfurter ambos os lados
-        devolvem a taxa de referência única.
+        mudo. Funciona igual para qualquer fonte: na Frankfurter, sem spread,
+        todos os lados devolvem a taxa de referência única.
         """
         tipo = TipoTaxa(tipo)  # normaliza e falha alto em valor inválido
-        return self.taxa_compra if tipo is TipoTaxa.COMPRA else self.taxa_venda
+        if tipo is TipoTaxa.COMPRA:
+            return self.taxa_compra
+        if tipo is TipoTaxa.VENDA:
+            return self.taxa_venda
+        if tipo is TipoTaxa.REFERENCIA:
+            return (self.taxa_compra + self.taxa_venda) / 2
+        # Rede de segurança: TipoTaxa(tipo) já restringe aos 3 membros acima;
+        # este raise só dispara se um novo membro for adicionado ao enum sem
+        # atualizar este método — nunca retorna None silenciosamente.
+        raise ValueError(f"TipoTaxa não tratado em taxa_para: {tipo!r}")
 
     @classmethod
     def de_ptax(

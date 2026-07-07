@@ -171,3 +171,24 @@ def test_cotacao_e_imutavel():
     cot = _frankfurter()
     with pytest.raises(ValidationError):
         cot.taxa_compra = Decimal("9")
+
+
+def test_taxa_para_referencia_retorna_media_ptax():
+    cot = _ptax(compra="5.10", venda="5.20")
+    assert cot.taxa_para(TipoTaxa.REFERENCIA) == Decimal("5.15")
+
+
+def test_taxa_para_referencia_retorna_taxa_unica_frankfurter():
+    cot = _frankfurter(mid="5.15")
+    assert cot.taxa_para(TipoTaxa.REFERENCIA) == Decimal("5.15")
+
+
+def test_taxa_para_referencia_preserva_precisao():
+    # (5.10 + 5.21) / 2 = 5.155 — divisão por 2 sempre termina exatamente.
+    cot = _ptax(compra="5.10", venda="5.21")
+    assert cot.taxa_para(TipoTaxa.REFERENCIA) == Decimal("5.155")
+
+
+def test_taxa_para_aceita_valor_string_referencia():
+    cot = _ptax(compra="5.10", venda="5.20")
+    assert cot.taxa_para("referencia") == Decimal("5.15")

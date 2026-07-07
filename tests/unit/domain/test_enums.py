@@ -9,8 +9,8 @@ def test_tipo_exposicao_tem_tres_membros():
     assert {t.value for t in TipoExposicao} == {"payable", "receivable", "intercompany"}
 
 
-def test_tipo_taxa_compra_e_venda():
-    assert {t.value for t in TipoTaxa} == {"compra", "venda"}
+def test_tipo_taxa_compra_venda_e_referencia():
+    assert {t.value for t in TipoTaxa} == {"compra", "venda", "referencia"}
 
 
 def test_fonte_ptax_e_frankfurter():

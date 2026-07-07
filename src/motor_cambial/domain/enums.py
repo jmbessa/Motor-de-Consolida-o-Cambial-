@@ -17,10 +17,11 @@ class TipoExposicao(StrEnum):
 
 
 class TipoTaxa(StrEnum):
-    """Lado da cotação aplicado na conversão (bid/ask)."""
+    """Lado da cotação aplicado na conversão (bid/ask) ou referência (mid)."""
 
     COMPRA = "compra"
     VENDA = "venda"
+    REFERENCIA = "referencia"
 
 
 class Fonte(StrEnum):
