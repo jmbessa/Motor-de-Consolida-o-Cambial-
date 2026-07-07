@@ -28,3 +28,22 @@ def test_domain_error_e_exception():
 
 def test_tipo_nao_suportado_e_domain_error():
     assert issubclass(TipoNaoSuportado, DomainError)
+
+
+from motor_cambial.domain.errors import (
+    FonteIndisponivel,
+    MoedaNaoSuportadaPelaFonte,
+    RespostaInvalida,
+)
+
+
+def test_fonte_indisponivel_e_domain_error():
+    assert issubclass(FonteIndisponivel, DomainError)
+
+
+def test_resposta_invalida_e_domain_error():
+    assert issubclass(RespostaInvalida, DomainError)
+
+
+def test_moeda_nao_suportada_pela_fonte_e_domain_error():
+    assert issubclass(MoedaNaoSuportadaPelaFonte, DomainError)

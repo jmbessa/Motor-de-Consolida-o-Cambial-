@@ -15,3 +15,15 @@ class ValorForaDeFaixa(DomainError):
 
 class TipoNaoSuportado(DomainError):
     """Um tipo (enum) não foi tratado explicitamente por uma regra — rede de segurança."""
+
+
+class FonteIndisponivel(DomainError):
+    """Falha de transporte ao consultar uma fonte de cotação (timeout, 5xx, rede)."""
+
+
+class RespostaInvalida(DomainError):
+    """Resposta de uma fonte veio malformada ou incompleta."""
+
+
+class MoedaNaoSuportadaPelaFonte(DomainError):
+    """A fonte de cotação não fornece a moeda solicitada."""
