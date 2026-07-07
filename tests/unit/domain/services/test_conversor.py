@@ -109,6 +109,34 @@ def test_sem_cotacao_dentro_da_janela_levanta_erro():
         converter(exposicao, cotacoes, date(2026, 6, 5), janela_dias=7)
 
 
+def test_ignora_cotacoes_de_moeda_diferente_da_exposicao():
+    exposicao = _exposicao(tipo=TipoExposicao.PAYABLE, valor="1000", moeda=Moeda.USD)
+    cotacao_errada = CotacaoNormalizada.de_ptax(
+        moeda=Moeda.EUR,
+        data_referencia=date(2026, 6, 5),
+        taxa_compra="6.00",
+        taxa_venda="6.10",
+    )
+    cotacao_certa = _cotacao_ptax(date(2026, 6, 5), compra="5.00", venda="5.10")
+    conversao = converter(
+        exposicao, [cotacao_errada, cotacao_certa], date(2026, 6, 5), janela_dias=7
+    )
+    assert conversao.moeda is Moeda.USD
+    assert conversao.taxa_aplicada == Decimal("5.10")
+
+
+def test_apenas_cotacoes_de_moeda_diferente_levanta_sem_cotacao_na_janela():
+    exposicao = _exposicao(tipo=TipoExposicao.PAYABLE, valor="1000", moeda=Moeda.USD)
+    cotacao_errada = CotacaoNormalizada.de_ptax(
+        moeda=Moeda.EUR,
+        data_referencia=date(2026, 6, 5),
+        taxa_compra="6.00",
+        taxa_venda="6.10",
+    )
+    with pytest.raises(SemCotacaoNaJanela):
+        converter(exposicao, [cotacao_errada], date(2026, 6, 5), janela_dias=7)
+
+
 def test_valor_brl_zero_apos_quantizacao_levanta_valor_fora_de_faixa():
     # exposição minúscula: 0.001 * 1.00 = 0.001 -> quantiza para 0.00 (ROUND_HALF_UP)
     exposicao = _exposicao(tipo=TipoExposicao.PAYABLE, valor="0.001")

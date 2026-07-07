@@ -28,15 +28,21 @@ def converter(
 ) -> Conversao:
     """Converte uma exposição para BRL usando as cotações de UMA fonte.
 
-    ``cotacoes`` deve conter só cotações da moeda de ``exposicao`` (o
-    chamador garante isso ao buscar por ``exposicao.moeda``). Levanta
-    ``SemCotacaoNaJanela`` se nenhuma data em ``cotacoes`` cair dentro da
-    janela retroativa a partir de ``data_referencia``. Levanta
-    ``ValorForaDeFaixa`` quando o valor convertido quantiza para zero ou
-    menos (caso degenerado mas reachable de negócio: exposição minúscula).
+    ``cotacoes`` normalmente contém só cotações da moeda de ``exposicao``
+    (o chamador busca por ``exposicao.moeda``), mas ``converter`` não confia
+    cegamente nisso: qualquer cotação cuja ``moeda`` não bata com a da
+    exposição é descartada antes da resolução de fallback, e a ``Conversao``
+    resultante registra ``moeda=cotacao.moeda`` (a moeda efetivamente usada,
+    não a solicitada). Levanta ``SemCotacaoNaJanela`` se nenhuma data em
+    ``cotacoes`` (após esse filtro) cair dentro da janela retroativa a
+    partir de ``data_referencia``. Levanta ``ValorForaDeFaixa`` quando o
+    valor convertido quantiza para zero ou menos (caso degenerado mas
+    reachable de negócio: exposição minúscula).
     """
     tipo_taxa = tipo_taxa_para(exposicao.tipo)
-    por_data = {c.data_referencia: c for c in cotacoes}
+    por_data = {
+        c.data_referencia: c for c in cotacoes if c.moeda == exposicao.moeda
+    }
     fallback = resolver_data_efetiva(
         data_solicitada=data_referencia,
         datas_disponiveis=por_data.keys(),
@@ -52,7 +58,7 @@ def converter(
         )
     return Conversao(
         fonte=cotacao.fonte,
-        moeda=exposicao.moeda,
+        moeda=cotacao.moeda,
         valor_origem=exposicao.valor,
         data_solicitada=data_referencia,
         data_efetiva=fallback.data_efetiva,

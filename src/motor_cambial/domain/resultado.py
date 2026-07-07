@@ -116,4 +116,8 @@ class PosicaoAvaliada(BaseModel):
             raise ValueError(
                 "divergencia e alertas só podem existir quando status é CONSOLIDADA"
             )
+        if self.status is StatusPosicao.CONSOLIDADA and self.divergencia is None:
+            raise ValueError(
+                "divergencia é obrigatória quando status é CONSOLIDADA"
+            )
         return self

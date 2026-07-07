@@ -111,6 +111,19 @@ def test_posicao_consolidada_rejeita_conversao_faltando():
         )
 
 
+def test_posicao_consolidada_exige_divergencia_presente():
+    with pytest.raises(ValidationError):
+        PosicaoAvaliada(
+            exposicao=_exposicao(),
+            status=StatusPosicao.CONSOLIDADA,
+            conversao_ptax=_conversao(fonte=Fonte.PTAX),
+            conversao_frankfurter=_conversao(
+                fonte=Fonte.FRANKFURTER, tipo_taxa=TipoTaxa.REFERENCIA
+            ),
+            divergencia=None,
+        )
+
+
 def test_posicao_parcial_exige_erro_da_fonte_faltando():
     posicao = PosicaoAvaliada(
         exposicao=_exposicao(),

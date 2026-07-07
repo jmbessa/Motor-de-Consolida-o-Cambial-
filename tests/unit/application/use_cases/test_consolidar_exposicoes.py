@@ -64,9 +64,9 @@ def _cotacao_ptax(data_referencia, compra="5.00", venda="5.10"):
     )
 
 
-def _cotacao_frankfurter(data_referencia, taxa="5.05"):
+def _cotacao_frankfurter(data_referencia, taxa="5.05", moeda=Moeda.USD):
     return CotacaoNormalizada.de_frankfurter(
-        moeda=Moeda.USD, data_referencia=data_referencia, taxa=taxa
+        moeda=moeda, data_referencia=data_referencia, taxa=taxa
     )
 
 
@@ -214,7 +214,9 @@ def test_lote_resiliente_uma_posicao_falha_as_demais_seguem():
             Fonte.FRANKFURTER,
             {
                 Moeda.USD: [_cotacao_frankfurter(data_referencia)],
-                Moeda.EUR: [_cotacao_frankfurter(data_referencia, taxa="6.10")],
+                Moeda.EUR: [
+                    _cotacao_frankfurter(data_referencia, taxa="6.10", moeda=Moeda.EUR)
+                ],
             },
         ),
     }
