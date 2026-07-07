@@ -110,11 +110,8 @@ def test_alerta_e_imutavel():
         valor_observado=Decimal("2"),
         limite=Decimal("1.5"),
     )
-    try:
+    with pytest.raises(ValidationError):
         alerta.valor_observado = Decimal("999")
-        assert False, "deveria ter levantado erro de imutabilidade"
-    except Exception:
-        pass
 
 
 def test_rejeita_diferenca_percentual_float():

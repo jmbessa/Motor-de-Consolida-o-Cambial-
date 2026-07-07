@@ -15,8 +15,8 @@ from pydantic import (
 )
 
 from motor_cambial.domain.decimal_utils import DecimalPositivo
-from motor_cambial.domain.errors import TipoNaoSuportado
 from motor_cambial.domain.enums import Fonte, Moeda, TipoExposicao, TipoTaxa
+from motor_cambial.domain.errors import TipoNaoSuportado
 
 IdNaoVazio = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
