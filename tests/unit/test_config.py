@@ -32,3 +32,23 @@ def test_config_janela_fallback_sobrescreve_por_env(monkeypatch):
     monkeypatch.setenv("MOTOR_JANELA_FALLBACK_DIAS", "3")
     c = Config()
     assert c.janela_fallback_dias == 3
+
+
+def test_config_tem_defaults_de_db():
+    c = Config()
+    assert c.db_host == "db"
+    assert c.db_port == 3306
+    assert c.db_name == "motor_cambial"
+
+
+def test_config_db_url_monta_string_sqlalchemy():
+    c = Config(db_host="localhost", db_port=3307, db_user="u", db_password="p", db_name="x")
+    assert c.db_url() == "mysql+pymysql://u:p@localhost:3307/x"
+
+
+def test_config_db_sobrescreve_por_env(monkeypatch):
+    monkeypatch.setenv("MOTOR_DB_HOST", "outro-host")
+    monkeypatch.setenv("MOTOR_DB_PORT", "5306")
+    c = Config()
+    assert c.db_host == "outro-host"
+    assert c.db_port == 5306
