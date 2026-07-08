@@ -1,10 +1,11 @@
 """Formata um ResultadoConsolidacao em relatório de console (texto puro).
 
 Função pura — só formata a string a partir do que já foi calculado pelo
-domínio/aplicação; não faz I/O, não recalcula nada. Cada seção (tabela por
-posição, totais por moeda, posição líquida por natureza, top divergências,
-não avaliadas) é omitida se a coleção correspondente estiver vazia — nunca
-imprime um cabeçalho de seção sem conteúdo.
+domínio/aplicação; não faz I/O, não recalcula nada. Cada seção (bloco por
+posição — com valor original, taxa, data efetiva e BRL de cada fonte —, totais
+por moeda, posição líquida por natureza, top divergências, não avaliadas) é
+omitida se a coleção correspondente estiver vazia — nunca imprime um cabeçalho
+de seção sem conteúdo.
 """
 
 from __future__ import annotations
@@ -15,10 +16,19 @@ from motor_cambial.domain.resultado import StatusPosicao
 from motor_cambial.domain.resultado_consolidacao import ResultadoConsolidacao
 
 
-def _fmt_brl(valor: Decimal) -> str:
+def _fmt_num(valor: Decimal) -> str:
+    """Número no formato brasileiro (milhar '.', decimal ',') com 2 casas, sem R$."""
     texto = f"{valor:,.2f}"
-    texto = texto.replace(",", "§").replace(".", ",").replace("§", ".")
-    return f"R$ {texto}"
+    return texto.replace(",", "§").replace(".", ",").replace("§", ".")
+
+
+def _fmt_brl(valor: Decimal) -> str:
+    return f"R$ {_fmt_num(valor)}"
+
+
+def _fmt_taxa(valor: Decimal) -> str:
+    """Taxa preservando a precisão da fonte, com vírgula decimal (não é BRL)."""
+    return f"{valor}".replace(".", ",")
 
 
 def _fmt_pct(valor: Decimal) -> str:
@@ -45,20 +55,27 @@ def formatar_relatorio(resultado: ResultadoConsolidacao) -> str:
 
     if consolidadas:
         linhas.append("--- Posições ---")
-        linhas.append(
-            f"{'ID':<6}{'Tipo':<14}{'Moeda':<7}{'BRL (PTAX)':<18}"
-            f"{'BRL (Frankfurter)':<20}{'Divergência':<13}{'Alerta':<6}"
-        )
         for p in consolidadas:
+            exp = p.exposicao
+            linhas.append(
+                f"[{exp.id}] {exp.tipo.value}  {exp.moeda.value}  "
+                f"{_fmt_num(p.conversao_ptax.valor_origem)}"
+            )
+            for rotulo, conv in (
+                ("PTAX", p.conversao_ptax),
+                ("Frankfurter", p.conversao_frankfurter),
+            ):
+                linhas.append(
+                    f"    {rotulo:<12}{conv.data_efetiva.isoformat()}  "
+                    f"taxa {_fmt_taxa(conv.taxa_aplicada):<9}[{conv.tipo_taxa.value}]"
+                    f"  →  {_fmt_brl(conv.valor_brl)}"
+                )
             alerta = "sim" if p.alertas else "-"
             linhas.append(
-                f"{p.exposicao.id:<6}{p.exposicao.tipo.value:<14}"
-                f"{p.exposicao.moeda.value:<7}"
-                f"{_fmt_brl(p.conversao_ptax.valor_brl):<18}"
-                f"{_fmt_brl(p.conversao_frankfurter.valor_brl):<20}"
-                f"{_fmt_pct(p.divergencia.percentual):<13}{alerta:<6}"
+                f"    Divergência  {_fmt_pct(p.divergencia.percentual)}  "
+                f"({_fmt_brl(p.divergencia.absoluta_brl)})    Alerta: {alerta}"
             )
-        linhas.append("")
+            linhas.append("")
 
     if resultado.visao.totais_por_moeda:
         linhas.append("--- Totais por moeda ---")

@@ -13,11 +13,15 @@ from motor_cambial.domain.rules.divergencia import Divergencia
 from motor_cambial.domain.services.consolidador import consolidar
 
 
-def _conversao(fonte, moeda, valor_brl, tipo_taxa, taxa="5.00"):
+def _conversao(fonte, moeda, valor_brl, tipo_taxa, taxa="5.00",
+               data_efetiva=date(2026, 6, 5)):
+    houve_fallback = data_efetiva != date(2026, 6, 5)
     return Conversao(
         fonte=fonte, moeda=moeda, valor_origem=Decimal("1000"),
-        data_solicitada=date(2026, 6, 5), data_efetiva=date(2026, 6, 5),
-        houve_fallback=False, defasagem_dias=0, tipo_taxa=tipo_taxa,
+        data_solicitada=date(2026, 6, 5), data_efetiva=data_efetiva,
+        houve_fallback=houve_fallback,
+        defasagem_dias=(date(2026, 6, 5) - data_efetiva).days,
+        tipo_taxa=tipo_taxa,
         taxa_aplicada=Decimal(taxa), valor_brl=Decimal(valor_brl),
     )
 
@@ -88,17 +92,16 @@ def test_tabela_de_posicoes_mostra_valores_formatados_em_brl():
     assert "0,98%" in texto
 
 
-def test_alerta_aparece_marcado_na_tabela():
+def test_alerta_aparece_marcado_no_bloco():
     resultado = _resultado([
         _consolidada("1", Moeda.USD, TipoExposicao.PAYABLE,
                      "5100.00", "4900.00", "200.00", "3.92", com_alerta=True),
     ])
     texto = formatar_relatorio(resultado)
-    linha = next(l for l in texto.splitlines() if l.startswith("1"))
-    assert "sim" in linha
+    assert "Alerta: sim" in texto
 
 
-def test_posicao_parcial_nao_aparece_na_tabela_principal():
+def test_posicao_parcial_nao_aparece_na_secao_de_posicoes():
     resultado = _resultado([
         _consolidada("1", Moeda.USD, TipoExposicao.PAYABLE,
                      "5100.00", "5050.00", "50.00", "0.98"),
@@ -109,8 +112,54 @@ def test_posicao_parcial_nao_aparece_na_tabela_principal():
         "--- Totais por moeda ---"
     )[0]
     linhas = secao_posicoes.splitlines()
-    assert not any(linha.startswith("2") for linha in linhas)
-    assert any(linha.startswith("1") for linha in linhas)
+    assert not any(linha.startswith("[2]") for linha in linhas)
+    assert any(linha.startswith("[1]") for linha in linhas)
+
+
+def test_bloco_mostra_valor_origem_da_exposicao():
+    resultado = _resultado([
+        _consolidada("1", Moeda.USD, TipoExposicao.PAYABLE,
+                     "5000.00", "5050.00", "50.00", "1"),
+    ])
+    texto = formatar_relatorio(resultado)
+    assert "1.000,00" in texto  # valor_origem = 1000, formato BR
+
+
+def test_bloco_mostra_taxa_e_tipo_de_taxa_por_fonte():
+    resultado = _resultado([
+        _consolidada("1", Moeda.USD, TipoExposicao.PAYABLE,
+                     "5000.00", "5050.00", "50.00", "1"),
+    ])
+    texto = formatar_relatorio(resultado)
+    assert "taxa 5,00" in texto
+    assert "[venda]" in texto        # tipo_taxa do lado PTAX
+    assert "[referencia]" in texto   # tipo_taxa do lado Frankfurter
+
+
+def test_bloco_mostra_data_efetiva_de_cada_fonte():
+    resultado = _resultado([
+        PosicaoAvaliada(
+            exposicao=Exposicao(
+                id="1", tipo=TipoExposicao.PAYABLE, moeda=Moeda.USD,
+                valor="1000", vencimento=date(2026, 6, 5),
+            ),
+            status=StatusPosicao.CONSOLIDADA,
+            conversao_ptax=_conversao(
+                Fonte.PTAX, Moeda.USD, "5000.00", TipoTaxa.VENDA,
+                data_efetiva=date(2026, 6, 3),
+            ),
+            conversao_frankfurter=_conversao(
+                Fonte.FRANKFURTER, Moeda.USD, "5050.00", TipoTaxa.REFERENCIA,
+                data_efetiva=date(2026, 6, 3),
+            ),
+            divergencia=Divergencia(
+                percentual=Decimal("1"), absoluta_brl=Decimal("50.00")
+            ),
+        )
+    ])
+    texto = formatar_relatorio(resultado)
+    secao = texto.split("--- Posições ---")[1].split("--- Totais")[0]
+    assert "2026-06-03" in secao  # data efetiva do fallback, distinta da referência
 
 
 def test_totais_por_moeda_aparecem():
