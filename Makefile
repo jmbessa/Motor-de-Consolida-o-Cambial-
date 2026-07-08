@@ -5,7 +5,12 @@
 # são implementados na fatia de infraestrutura — por ora são placeholders
 # explícitos, para não fingir comportamento inexistente.
 
+# Interpretador do venv — o layout muda entre Windows e POSIX.
+ifeq ($(OS),Windows_NT)
 VENV_PY := .venv/Scripts/python.exe
+else
+VENV_PY := .venv/bin/python
+endif
 
 .DEFAULT_GOAL := help
 .PHONY: help install test test-integration run up down logs migrate seed clean
@@ -41,16 +46,14 @@ down: ## Derruba o container (mantém o volume de dados)
 logs: ## Acompanha os logs do MySQL
 	$(COMPOSE) logs -f db
 
-migrate: ## Aplica o schema (criar_schema) no MySQL
+migrate: up ## Sobe o MySQL (se preciso) e aplica o schema (criar_schema)
 	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.outbound.persistence.migrate
 
-test-integration: ## Roda os testes de integração contra o MySQL do container
+test-integration: up ## Sobe o MySQL (se preciso) e roda os testes de integração
 	MOTOR_TEST_DB_URL=$(TEST_DB_URL) $(VENV_PY) -m pytest -m integration
 
-run: ## Prepara a camada de dados (up + migrate). O app (CLI/API/front) chega nas Fatias 7/8
-	@echo "App completo chega nas Fatias 7/8. Por ora: sobe o MySQL e aplica o schema."
-	$(MAKE) up
-	$(MAKE) migrate
+run: migrate ## Prepara a camada de dados (up + migrate). O app (CLI/API/front) chega nas Fatias 7/8
+	@echo "Camada de dados pronta. O app completo (CLI/API/front) chega nas Fatias 7/8."
 
 seed: ## [Fatia 7] Carrega data/exposicoes.json (depende do loader da CLI)
 	@echo "[Fatia 7] seed depende do loader de exposicoes.json (CLI), ainda indisponivel."
