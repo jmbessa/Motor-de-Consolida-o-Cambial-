@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Motor de Consolidação Cambial · Tesouraria</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <!-- Barra de comando -->
+    <header class="cmd">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◆</span>
+        <span class="brand-name">MOTOR&nbsp;CAMBIAL</span>
+        <span class="brand-sub">consolidação de exposições · tesouraria</span>
+      </div>
+      <form class="controls" id="controls" autocomplete="off">
+        <label class="ctl">
+          <span class="ctl-label">Data de referência</span>
+          <input type="date" id="data" name="data" />
+        </label>
+        <label class="ctl ctl-toggle">
+          <input type="checkbox" id="live" name="live" />
+          <span class="ctl-label">Cotações ao vivo</span>
+        </label>
+        <button type="submit" class="run" id="run">Consolidar</button>
+      </form>
+    </header>
+
+    <!-- Editor de exposições (opcional) -->
+    <details class="expos">
+      <summary>
+        <span>Exposições</span>
+        <span class="expos-hint">5 do enunciado · edite o JSON para substituir</span>
+      </summary>
+      <textarea id="exposicoes" spellcheck="false" aria-label="Lista de exposições em JSON"></textarea>
+      <p class="expos-msg" id="expos-msg" role="status"></p>
+    </details>
+
+    <!-- Estado -->
+    <p class="status" id="status" role="status"></p>
+
+    <main id="dash" class="dash" hidden>
+      <!-- KPIs -->
+      <section class="kpis" aria-label="Indicadores">
+        <article class="kpi">
+          <p class="kpi-label">Exposição total <span class="tag tag-ptax">PTAX</span></p>
+          <p class="kpi-value" id="kpi-total">—</p>
+          <p class="kpi-foot" id="kpi-total-foot"></p>
+        </article>
+        <article class="kpi">
+          <p class="kpi-label">Alertas de materialidade</p>
+          <p class="kpi-value" id="kpi-alertas">—</p>
+          <p class="kpi-foot">&gt; 1,5% ou &gt; R$ 10.000 por posição</p>
+        </article>
+        <article class="kpi">
+          <p class="kpi-label">Maior divergência</p>
+          <p class="kpi-value" id="kpi-maior">—</p>
+          <p class="kpi-foot" id="kpi-maior-foot"></p>
+        </article>
+      </section>
+
+      <!-- Gráficos-herói -->
+      <section class="charts">
+        <article class="panel panel-matrix">
+          <div class="panel-head">
+            <h2>Matriz de materialidade</h2>
+            <p class="panel-sub">impacto em R$ (vertical) × divergência % (horizontal) — a zona de risco é o canto superior-direito</p>
+          </div>
+          <div class="matrix-wrap">
+            <svg id="matrix" class="matrix" viewBox="0 0 520 380" role="img"
+                 aria-label="Dispersão das posições por impacto e divergência"></svg>
+            <div class="legend" aria-hidden="true">
+              <span class="legend-item"><i class="dot dot-alert"></i>em alerta</span>
+              <span class="legend-item"><i class="dot dot-ok"></i>dentro do limite</span>
+              <span class="legend-item"><i class="line-mark"></i>limites 1,5% / R$ 10.000</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel panel-cmp">
+          <div class="panel-head">
+            <h2>PTAX × Frankfurter</h2>
+            <p class="panel-sub">total em BRL por moeda, pelas duas fontes</p>
+          </div>
+          <svg id="cmp" class="cmp" viewBox="0 0 360 380" role="img"
+               aria-label="Barras comparando o total em BRL por fonte e moeda"></svg>
+          <div class="legend">
+            <span class="legend-item"><i class="dot dot-ptax"></i>PTAX · BCB</span>
+            <span class="legend-item"><i class="dot dot-frank"></i>Frankfurter · BCE</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- Posições -->
+      <section class="panel panel-table">
+        <div class="panel-head">
+          <h2>Posições</h2>
+          <p class="panel-sub">clique numa linha para a trilha de rastreabilidade</p>
+        </div>
+        <div class="table-scroll">
+          <table class="positions" id="positions">
+            <thead>
+              <tr>
+                <th class="col-id">#</th>
+                <th>Tipo</th>
+                <th>Moeda</th>
+                <th class="num">Valor origem</th>
+                <th class="num">BRL · PTAX</th>
+                <th class="num">BRL · Frankfurter</th>
+                <th class="num">Divergência</th>
+                <th class="col-flag">Alerta</th>
+              </tr>
+            </thead>
+            <tbody id="positions-body"></tbody>
+          </table>
+        </div>
+        <div class="nao-avaliadas" id="nao-avaliadas" hidden>
+          <h3>Não avaliadas</h3>
+          <ul id="nao-avaliadas-list"></ul>
+        </div>
+      </section>
+
+      <footer class="meta" id="meta"></footer>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
