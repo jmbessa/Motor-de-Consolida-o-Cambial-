@@ -1,0 +1,28 @@
+# Infra de dados do Motor de Consolidação Cambial.
+# Fatia 6b: apenas o container MySQL. Backend/frontend chegam na Fatia 8.
+services:
+  db:
+    image: mysql:8.0
+    container_name: motor_cambial_db
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-motor_cambial}
+      MYSQL_USER: ${MYSQL_USER:-motor}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-motor}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      # Fixo em 3306 para casar com os alvos do Makefile (migrate/test-integration).
+      # Se houver um MySQL local na 3306, pare-o antes de `make up`.
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # -h 127.0.0.1 força TCP: só passa quando o servidor de rede real está no ar
+      # (evita o falso-positivo do servidor temporário de init do MySQL).
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  mysql_data:

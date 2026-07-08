@@ -5,10 +5,15 @@
 # são implementados na fatia de infraestrutura — por ora são placeholders
 # explícitos, para não fingir comportamento inexistente.
 
+# Interpretador do venv — o layout muda entre Windows e POSIX.
+ifeq ($(OS),Windows_NT)
 VENV_PY := .venv/Scripts/python.exe
+else
+VENV_PY := .venv/bin/python
+endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install test run up down logs migrate seed clean
+.PHONY: help install test test-integration run up down logs migrate seed clean
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -24,24 +29,36 @@ install: ## Cria o venv e instala as dependências (modo dev)
 test: ## Roda a suíte de testes
 	$(VENV_PY) -m pytest
 
-# --- Execução / entrega (Docker Compose) — fatia de infraestrutura ---
+# --- Execução / entrega (Docker Compose) ---
 
-run: up ## Sobe todo o stack (build + containers + migrations) — atalho principal
+COMPOSE := docker compose
+# Alvos rodados do host (venv) contra o container publicam o MySQL em 127.0.0.1
+# (o default MOTOR_DB_HOST=db só resolve na rede interna do Compose — Fatia 8).
+HOST_DB := MOTOR_DB_HOST=127.0.0.1
+TEST_DB_URL := mysql+pymysql://motor:motor@127.0.0.1:3306/motor_cambial
 
-up: ## Sobe backend + frontend + MySQL
-	@echo "[TODO fatia de infra] docker compose up --build -d"
+up: ## Sobe o MySQL e espera ficar healthy
+	$(COMPOSE) up -d --wait db
 
-down: ## Derruba o stack
-	@echo "[TODO fatia de infra] docker compose down"
+down: ## Derruba o container (mantém o volume de dados)
+	$(COMPOSE) down
 
-logs: ## Acompanha os logs dos containers
-	@echo "[TODO fatia de infra] docker compose logs -f"
+logs: ## Acompanha os logs do MySQL
+	$(COMPOSE) logs -f db
 
-migrate: ## Aplica o schema/migrations no MySQL
-	@echo "[TODO fatia de infra] aplicar migrations no MySQL"
+migrate: up ## Sobe o MySQL (se preciso) e aplica o schema (criar_schema)
+	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.outbound.persistence.migrate
 
-seed: ## Carrega a massa de dados de exemplo
-	@echo "[TODO fatia de infra] carregar data/exposicoes.json"
+test-integration: up ## Sobe o MySQL (se preciso) e roda os testes de integração
+	MOTOR_TEST_DB_URL=$(TEST_DB_URL) $(VENV_PY) -m pytest -m integration
 
-clean: ## Remove artefatos locais (venv, caches)
-	@echo "[TODO fatia de infra] remover volumes/containers; limpar caches"
+run: migrate ## Prepara a camada de dados (up + migrate). O app (CLI/API/front) chega nas Fatias 7/8
+	@echo "Camada de dados pronta. O app completo (CLI/API/front) chega nas Fatias 7/8."
+
+seed: ## [Fatia 7] Carrega data/exposicoes.json (depende do loader da CLI)
+	@echo "[Fatia 7] seed depende do loader de exposicoes.json (CLI), ainda indisponivel."
+
+clean: ## Derruba o container COM o volume e limpa caches locais
+	$(COMPOSE) down -v
+	rm -rf .pytest_cache .ruff_cache
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
