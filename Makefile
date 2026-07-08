@@ -52,11 +52,12 @@ migrate: up ## Sobe o MySQL (se preciso) e aplica o schema (criar_schema)
 test-integration: up ## Sobe o MySQL (se preciso) e roda os testes de integração
 	MOTOR_TEST_DB_URL=$(TEST_DB_URL) $(VENV_PY) -m pytest -m integration
 
-run: migrate ## Prepara a camada de dados (up + migrate). O app (CLI/API/front) chega nas Fatias 7/8
-	@echo "Camada de dados pronta. O app completo (CLI/API/front) chega nas Fatias 7/8."
+seed: ## Confirma a presença da massa de dados de exemplo (data/exposicoes.json)
+	@test -f data/exposicoes.json && echo "data/exposicoes.json presente." || \
+		(echo "data/exposicoes.json ausente." && exit 1)
 
-seed: ## [Fatia 7] Carrega data/exposicoes.json (depende do loader da CLI)
-	@echo "[Fatia 7] seed depende do loader de exposicoes.json (CLI), ainda indisponivel."
+run: migrate ## Sobe o MySQL, aplica o schema e roda a CLI uma vez com os defaults
+	$(VENV_PY) -m motor_cambial.adapters.inbound.cli.app
 
 clean: ## Derruba o container COM o volume e limpa caches locais
 	$(COMPOSE) down -v
