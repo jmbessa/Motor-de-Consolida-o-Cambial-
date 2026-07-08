@@ -230,10 +230,16 @@ obrigatória); os demais são built-in do Claude Code.
 
 Escolhas de escopo, conscientes para o prazo de 5 dias:
 
-- **CLI-only.** A CLI cumpre todo o entregável funcional do enunciado. Uma **API REST** e um
-  **front-end web** (explicitamente um "diferencial", não requisito) ficaram de fora para focar
-  em decisões bem justificadas no núcleo. **Com mais tempo:** exporia o pipeline por FastAPI e um
-  front que consome a API, com gráficos de divergência e posição por natureza.
+- **CLI + API REST; front-end na 8b.** A CLI cumpre todo o entregável funcional do enunciado; a
+  **API REST** (FastAPI) foi adicionada como segundo adapter inbound (Fatia 8a) — `make api`,
+  Swagger em `/docs`. O **front-end web** (dashboard de tesouraria) e o `docker compose up` de
+  caminho único (backend + frontend + MySQL) são a **Fatia 8b**. Front-end é "diferencial", não
+  requisito do enunciado.
+- **Ciclo de vida dos clients HTTP na API.** Hoje o `POST /consolidacoes` reconstrói os
+  `httpx.Client` por requisição (herança do composition root, onde na CLI é inofensivo). Numa API
+  long-running isso não escala — no caminho default (cache-first) o impacto é ~zero, mas sob modo
+  live com carga há churn de sockets. **Com mais tempo (Fatia 8b):** criar os providers uma vez
+  no `lifespan`, compartilhando os clients e preservando o `modo_live` por requisição.
 - **Só o MySQL em container.** A app roda do venv local. **Com mais tempo:** conteinerizaria a
   aplicação para um `docker compose up` de caminho único, e adicionaria um modo de demo **sem
   Docker** (ex.: SQLite) para reduzir o atrito do "roda em < 5 min".
