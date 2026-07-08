@@ -255,6 +255,155 @@ def test_janela_dias_negativa_e_rejeitada_pelo_parser(tmp_path, monkeypatch):
     assert resultado.exit_code == 2
 
 
+def _resultado_vazio(*args, **kwargs):
+    return ResultadoConsolidacao(
+        data_referencia=date(2026, 6, 5), hash_conjunto="a" * 64,
+        posicoes=(), visao=consolidar([]),
+    )
+
+
+def test_forcar_saida_utf8_reconfigura_streams(monkeypatch):
+    from motor_cambial.adapters.inbound.cli import app as app_module
+
+    class _StreamFake:
+        def __init__(self):
+            self.encoding_pedido = None
+
+        def reconfigure(self, encoding):
+            self.encoding_pedido = encoding
+
+    fake_out, fake_err = _StreamFake(), _StreamFake()
+    monkeypatch.setattr("sys.stdout", fake_out)
+    monkeypatch.setattr("sys.stderr", fake_err)
+    app_module._forcar_saida_utf8()
+    assert fake_out.encoding_pedido == "utf-8"
+    assert fake_err.encoding_pedido == "utf-8"
+
+
+def test_forcar_saida_utf8_ignora_stream_sem_reconfigure(monkeypatch):
+    from motor_cambial.adapters.inbound.cli import app as app_module
+
+    monkeypatch.setattr("sys.stdout", object())
+    monkeypatch.setattr("sys.stderr", object())
+    app_module._forcar_saida_utf8()  # não deve levantar
+
+
+def test_modo_live_lido_do_env_quando_flag_omitida(tmp_path, monkeypatch):
+    capturado = {}
+    monkeypatch.setenv("MOTOR_MODO_LIVE", "true")
+
+    def _fake_providers(config):
+        capturado["modo_live"] = config.modo_live
+        return {}
+
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_providers", _fake_providers
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_repository",
+        lambda config: _RepoFake(),
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.reprocessar_por_data", _resultado_vazio
+    )
+    saida = tmp_path / "saida.json"
+    resultado = runner.invoke(
+        app,
+        ["--arquivo", str(_arquivo_exposicoes(tmp_path)), "--data", "2026-06-05",
+         "--saida", str(saida)],
+    )
+    assert resultado.exit_code == 0, resultado.output
+    assert capturado["modo_live"] is True
+
+
+def test_flag_cache_sobrepoe_env_modo_live(tmp_path, monkeypatch):
+    capturado = {}
+    monkeypatch.setenv("MOTOR_MODO_LIVE", "true")
+
+    def _fake_providers(config):
+        capturado["modo_live"] = config.modo_live
+        return {}
+
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_providers", _fake_providers
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_repository",
+        lambda config: _RepoFake(),
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.reprocessar_por_data", _resultado_vazio
+    )
+    saida = tmp_path / "saida.json"
+    resultado = runner.invoke(
+        app,
+        ["--arquivo", str(_arquivo_exposicoes(tmp_path)), "--data", "2026-06-05",
+         "--cache", "--saida", str(saida)],
+    )
+    assert resultado.exit_code == 0, resultado.output
+    assert capturado["modo_live"] is False
+
+
+def test_janela_dias_lida_do_env_quando_flag_omitida(tmp_path, monkeypatch):
+    capturado = {}
+    monkeypatch.setenv("MOTOR_JANELA_FALLBACK_DIAS", "3")
+
+    def _fake_reprocessar(
+        exposicoes, providers, data_referencia, repository, config_alerta, janela_dias
+    ):
+        capturado["janela"] = janela_dias
+        return _resultado_vazio()
+
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_providers", lambda config: {}
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_repository",
+        lambda config: _RepoFake(),
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.reprocessar_por_data", _fake_reprocessar
+    )
+    saida = tmp_path / "saida.json"
+    resultado = runner.invoke(
+        app,
+        ["--arquivo", str(_arquivo_exposicoes(tmp_path)), "--data", "2026-06-05",
+         "--saida", str(saida)],
+    )
+    assert resultado.exit_code == 0, resultado.output
+    assert capturado["janela"] == 3
+
+
+def test_flag_janela_dias_sobrepoe_env(tmp_path, monkeypatch):
+    capturado = {}
+    monkeypatch.setenv("MOTOR_JANELA_FALLBACK_DIAS", "3")
+
+    def _fake_reprocessar(
+        exposicoes, providers, data_referencia, repository, config_alerta, janela_dias
+    ):
+        capturado["janela"] = janela_dias
+        return _resultado_vazio()
+
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_providers", lambda config: {}
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.construir_repository",
+        lambda config: _RepoFake(),
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.cli.app.reprocessar_por_data", _fake_reprocessar
+    )
+    saida = tmp_path / "saida.json"
+    resultado = runner.invoke(
+        app,
+        ["--arquivo", str(_arquivo_exposicoes(tmp_path)), "--data", "2026-06-05",
+         "--janela-dias", "5", "--saida", str(saida)],
+    )
+    assert resultado.exit_code == 0, resultado.output
+    assert capturado["janela"] == 5
+
+
 def test_falha_ao_exportar_json_informa_que_pipeline_ja_persistiu(tmp_path, monkeypatch):
     data_ref = date(2026, 6, 5)
     repo = _RepoFake()

@@ -10,6 +10,7 @@ terminal) e injeta as dependências concretas via ``composition_root``.
 
 from __future__ import annotations
 
+import sys
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -67,8 +68,10 @@ def consolidar(
         help="Data de referência (YYYY-MM-DD); default: hoje",
         callback=_validar_data,
     ),
-    live: bool = typer.Option(
-        False, "--live/--cache", help="Busca cotações ao vivo (ignora o cache)"
+    live: bool | None = typer.Option(
+        None,
+        "--live/--cache",
+        help="Busca ao vivo vs. cache; se omitido, usa MOTOR_MODO_LIVE (default cache)",
     ),
     limite_percentual: str | None = typer.Option(
         None,
@@ -82,8 +85,11 @@ def consolidar(
         help="Limite absoluto em BRL de alerta (default: 10000)",
         callback=_validar_limite,
     ),
-    janela_dias: int = typer.Option(
-        7, "--janela-dias", min=0, help="Janela de fallback de data (dias)"
+    janela_dias: int | None = typer.Option(
+        None,
+        "--janela-dias",
+        min=0,
+        help="Janela de fallback (dias); se omitido, usa MOTOR_JANELA_FALLBACK_DIAS (7)",
     ),
     saida: Path | None = typer.Option(
         None,
@@ -101,7 +107,9 @@ def consolidar(
         overrides["limite_absoluto_brl"] = Decimal(limite_absoluto)
     config_alerta = ConfiguracaoAlerta(**overrides)
 
-    config = Config(modo_live=live)
+    # Flags têm prioridade; quando omitidas (None), cai no Config (env var/default).
+    config = Config() if live is None else Config(modo_live=live)
+    janela = janela_dias if janela_dias is not None else config.janela_fallback_dias
 
     try:
         providers = construir_providers(config)
@@ -113,7 +121,7 @@ def consolidar(
             data_referencia,
             repository,
             config_alerta,
-            janela_dias,
+            janela,
         )
     except DomainError as exc:
         typer.echo(f"erro: {exc}", err=True)
@@ -137,5 +145,20 @@ def consolidar(
     typer.echo(f"resultado exportado em {caminho_saida}")
 
 
+def _forcar_saida_utf8() -> None:
+    """Garante saída UTF-8 no console.
+
+    No Windows, ``sys.stdout``/``stderr`` assumem o code page do sistema (ex.:
+    cp1252), o que corrompe os acentos do relatório num terminal UTF-8.
+    Reconfigurar para UTF-8 no entrypoint resolve sem depender de env externa.
+    Streams sem ``reconfigure`` (ex.: já substituídos por um teste) são ignorados.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
+
+
 if __name__ == "__main__":
+    _forcar_saida_utf8()
     app()
