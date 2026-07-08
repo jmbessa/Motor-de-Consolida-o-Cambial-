@@ -13,7 +13,7 @@ VENV_PY := .venv/bin/python
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test-integration run up down logs migrate seed clean
+.PHONY: help install test test-integration run run-live up down logs migrate seed clean
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -56,8 +56,11 @@ seed: ## Confirma a presença da massa de dados de exemplo (data/exposicoes.json
 	@test -f data/exposicoes.json && echo "data/exposicoes.json presente." || \
 		(echo "data/exposicoes.json ausente." && exit 1)
 
-run: migrate ## Sobe o MySQL, aplica o schema e roda a CLI uma vez com os defaults
+run: migrate ## Sobe o MySQL, aplica o schema e roda a CLI uma vez com os defaults (cache-first)
 	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.inbound.cli.app
+
+run-live: migrate ## Como `run`, mas consulta PTAX e Frankfurter ao vivo (ignora o cache)
+	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.inbound.cli.app --live
 
 clean: ## Derruba o container COM o volume e limpa caches locais
 	$(COMPOSE) down -v
