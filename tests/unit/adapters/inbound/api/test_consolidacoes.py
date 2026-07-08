@@ -63,14 +63,18 @@ _BODY = {
 
 def _client(monkeypatch, repo=None, providers=None):
     repo = repo or _RepoFake()
+    provs = providers if providers is not None else _providers_ok(date(2026, 6, 5))
     monkeypatch.setattr(
         "motor_cambial.adapters.inbound.api.app.construir_repository",
         lambda config: repo,
     )
     monkeypatch.setattr(
-        "motor_cambial.adapters.inbound.api.app.construir_providers",
-        lambda config: providers if providers is not None
-        else _providers_ok(date(2026, 6, 5)),
+        "motor_cambial.adapters.inbound.api.app.construir_providers_base",
+        lambda config: {},
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.api.app.envolver_com_cache",
+        lambda base, cache_dir, modo_live: provs,
     )
     return TestClient(criar_app()), repo
 
@@ -142,13 +146,11 @@ def test_post_persistencia_indisponivel_vira_503(monkeypatch):
     assert r.status_code == 503
 
 
-def test_post_modo_live_no_corpo_chega_aos_providers(monkeypatch):
-    # Exercita o branch config.model_copy(update={"modo_live": ...}) do handler:
-    # modo_live informado no corpo deve chegar ao Config passado a construir_providers.
+def test_post_modo_live_no_corpo_chega_ao_envelope(monkeypatch):
     capturado = {}
 
-    def _fake_providers(config):
-        capturado["modo_live"] = config.modo_live
+    def _fake_envolver(base, cache_dir, modo_live):
+        capturado["modo_live"] = modo_live
         return _providers_ok(date(2026, 6, 5))
 
     monkeypatch.setattr(
@@ -156,12 +158,45 @@ def test_post_modo_live_no_corpo_chega_aos_providers(monkeypatch):
         lambda config: _RepoFake(),
     )
     monkeypatch.setattr(
-        "motor_cambial.adapters.inbound.api.app.construir_providers", _fake_providers
+        "motor_cambial.adapters.inbound.api.app.construir_providers_base",
+        lambda config: {},
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.api.app.envolver_com_cache", _fake_envolver
     )
     client = TestClient(criar_app())
     r = client.post("/consolidacoes", json={**_BODY, "modo_live": True})
     assert r.status_code == 200, r.text
     assert capturado["modo_live"] is True
+
+
+def test_providers_base_construido_uma_vez_e_nao_por_requisicao(monkeypatch):
+    chamadas = {"base": 0, "envolver": 0}
+
+    def _fake_base(config):
+        chamadas["base"] += 1
+        return {}
+
+    def _fake_envolver(base, cache_dir, modo_live):
+        chamadas["envolver"] += 1
+        return _providers_ok(date(2026, 6, 5))
+
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.api.app.construir_repository",
+        lambda config: _RepoFake(),
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.api.app.construir_providers_base", _fake_base
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.api.app.envolver_com_cache", _fake_envolver
+    )
+    client = TestClient(criar_app())
+    assert chamadas["base"] == 1  # base montado no criar_app
+    client.post("/consolidacoes", json=_BODY)
+    client.post("/consolidacoes", json=_BODY)
+    assert chamadas["base"] == 1  # NÃO reconstruído por requisição (fix I-1)
+    assert chamadas["envolver"] == 2  # envelope barato, por requisição
 
 
 def test_post_erro_inesperado_do_motor_vira_500(monkeypatch):

@@ -26,8 +26,12 @@ def _client(monkeypatch, repo):
         lambda config: repo,
     )
     monkeypatch.setattr(
-        "motor_cambial.adapters.inbound.api.app.construir_providers",
+        "motor_cambial.adapters.inbound.api.app.construir_providers_base",
         lambda config: {},
+    )
+    monkeypatch.setattr(
+        "motor_cambial.adapters.inbound.api.app.envolver_com_cache",
+        lambda base, cache_dir, modo_live: {},
     )
     return TestClient(criar_app())
 

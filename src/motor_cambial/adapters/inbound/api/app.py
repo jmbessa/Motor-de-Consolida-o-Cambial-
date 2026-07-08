@@ -19,7 +19,11 @@ from motor_cambial.adapters.inbound.api.models import ConsolidarRequest
 from motor_cambial.application.use_cases.reprocessar_por_data import (
     reprocessar_por_data,
 )
-from motor_cambial.composition_root import construir_providers, construir_repository
+from motor_cambial.composition_root import (
+    construir_providers_base,
+    construir_repository,
+    envolver_com_cache,
+)
 from motor_cambial.config import Config
 from motor_cambial.domain.errors import (
     DomainError,
@@ -38,6 +42,7 @@ def criar_app(config: Config | None = None) -> FastAPI:
     """Factory da app FastAPI (injeta Config para testabilidade)."""
     config = config or Config()
     repositorio = construir_repository(config)
+    providers_base = construir_providers_base(config)
 
     app = FastAPI(title="Motor de Consolidação Cambial", version="0.1.0")
     app.add_middleware(
@@ -68,12 +73,8 @@ def criar_app(config: Config | None = None) -> FastAPI:
 
     @app.post("/consolidacoes")
     def consolidar_endpoint(req: ConsolidarRequest) -> Response:
-        cfg = (
-            config
-            if req.modo_live is None
-            else config.model_copy(update={"modo_live": req.modo_live})
-        )
-        providers = construir_providers(cfg)
+        modo_live = config.modo_live if req.modo_live is None else req.modo_live
+        providers = envolver_com_cache(providers_base, config.cache_dir, modo_live)
         overrides: dict[str, Decimal] = {}
         if req.limite_percentual is not None:
             overrides["limite_percentual"] = req.limite_percentual
@@ -84,7 +85,7 @@ def criar_app(config: Config | None = None) -> FastAPI:
         janela = (
             req.janela_dias
             if req.janela_dias is not None
-            else cfg.janela_fallback_dias
+            else config.janela_fallback_dias
         )
         resultado = reprocessar_por_data(
             req.exposicoes, providers, data_ref, repositorio, config_alerta, janela
