@@ -161,6 +161,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Artefatos gerados pela CLI (cache de cotações + relatórios exportados)
+data/cache/
+data/output/
+
 # Spyder project settings
 .spyderproject
 .spyproject

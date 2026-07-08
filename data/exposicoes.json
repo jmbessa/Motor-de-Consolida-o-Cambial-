@@ -1,0 +1,7 @@
+[
+  {"id": "1", "tipo": "payable", "moeda": "USD", "valor": "125000", "vencimento": "2026-06-05", "descricao": "AWS invoice"},
+  {"id": "2", "tipo": "receivable", "moeda": "EUR", "valor": "98000", "vencimento": "2026-06-08", "descricao": "Marketplace settlement"},
+  {"id": "3", "tipo": "payable", "moeda": "GBP", "valor": "45000", "vencimento": "2026-06-12", "descricao": "Vendor payment"},
+  {"id": "4", "tipo": "intercompany", "moeda": "USD", "valor": "300000", "vencimento": "2026-06-15", "descricao": "Intercompany funding"},
+  {"id": "5", "tipo": "receivable", "moeda": "CAD", "valor": "22000", "vencimento": "2026-06-20", "descricao": "Cross-border receivable"}
+]

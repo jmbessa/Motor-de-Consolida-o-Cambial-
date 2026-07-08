@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import httpx
+from sqlalchemy import create_engine
 
 from motor_cambial.adapters.outbound.cache.cache_provider import CacheCotacaoProvider
 from motor_cambial.adapters.outbound.frankfurter.client import FrankfurterProvider
+from motor_cambial.adapters.outbound.persistence.repository import (
+    RepositorioResultadoSQL,
+)
 from motor_cambial.adapters.outbound.ptax.client import PtaxProvider
 from motor_cambial.config import Config
 from motor_cambial.domain.enums import Fonte
 from motor_cambial.ports.cotacao_provider import CotacaoProvider
+from motor_cambial.ports.resultado_repository import ResultadoRepository
 
 
 def construir_providers(config: Config) -> dict[Fonte, CotacaoProvider]:
@@ -30,3 +35,9 @@ def construir_providers(config: Config) -> dict[Fonte, CotacaoProvider]:
             frankfurter, config.cache_dir, config.modo_live
         ),
     }
+
+
+def construir_repository(config: Config) -> ResultadoRepository:
+    """Monta o RepositorioResultadoSQL a partir da URL de conexão da Config."""
+    engine = create_engine(config.db_url())
+    return RepositorioResultadoSQL(engine)
