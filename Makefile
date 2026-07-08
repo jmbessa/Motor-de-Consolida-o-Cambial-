@@ -13,7 +13,7 @@ VENV_PY := .venv/bin/python
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test-integration run run-live up down logs migrate seed clean
+.PHONY: help install test test-integration run run-live api up down logs migrate seed clean
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -61,6 +61,9 @@ run: migrate ## Sobe o MySQL, aplica o schema e roda a CLI uma vez com os defaul
 
 run-live: migrate ## Como `run`, mas consulta PTAX e Frankfurter ao vivo (ignora o cache)
 	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.inbound.cli.app --live
+
+api: migrate ## Sobe o MySQL, aplica o schema e serve a API (uvicorn do venv)
+	$(HOST_DB) $(VENV_PY) -m uvicorn motor_cambial.adapters.inbound.api.app:app --port 8000
 
 clean: ## Derruba o container COM o volume e limpa caches locais
 	$(COMPOSE) down -v
