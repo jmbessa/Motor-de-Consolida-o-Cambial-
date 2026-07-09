@@ -1,19 +1,37 @@
 # Makefile — porta de entrada única do projeto.
 #
 # Alvos de DESENVOLVIMENTO usam o venv local (rápido, para o ciclo TDD).
-# Alvos de EXECUÇÃO/ENTREGA usam Docker Compose (backend + frontend + MySQL) e
-# são implementados na fatia de infraestrutura — por ora são placeholders
-# explícitos, para não fingir comportamento inexistente.
+# Alvos de EXECUÇÃO combinam Docker Compose (MySQL, e no caminho do dashboard
+# também backend+frontend) com a aplicação (venv, para o caminho da CLI).
 
-# Interpretador do venv — o layout muda entre Windows e POSIX.
+COMPOSE := docker compose
+TEST_DB_URL := mysql+pymysql://motor:motor@127.0.0.1:3306/motor_cambial
+
+# Interpretador do venv e variáveis de env por comando — o layout muda entre
+# Windows e POSIX.
+#
+# Sem Git Bash/WSL no PATH, o make resolve cmd.exe como shell de receita, o
+# que quebra de duas formas: (1) `VAR=valor comando` (prefixo de env var,
+# sintaxe POSIX) falha com "'VAR' não é reconhecido..."; (2) `$(VENV_PY)`
+# com barra normal (`.venv/Scripts/python.exe`) falha com "'.venv' não é
+# reconhecido..." — cmd.exe só resolve o COMANDO principal (não argumentos)
+# com contrabarra. Por isso os alvos que rodam Python forçam `SHELL :=
+# cmd.exe` (sempre presente no Windows) e usam `\` + `set VAR=valor&&` —
+# determinístico, em vez de depender de qual shell o make detectar.
 ifeq ($(OS),Windows_NT)
-VENV_PY := .venv/Scripts/python.exe
+VENV_PY := .venv\Scripts\python.exe
+HOST_DB := set MOTOR_DB_HOST=127.0.0.1&&
+SET_TEST_DB_URL := set MOTOR_TEST_DB_URL=$(TEST_DB_URL)&&
+RECIPE_SHELL := cmd.exe
 else
 VENV_PY := .venv/bin/python
+HOST_DB := MOTOR_DB_HOST=127.0.0.1
+SET_TEST_DB_URL := MOTOR_TEST_DB_URL=$(TEST_DB_URL)
+RECIPE_SHELL := $(SHELL)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test-integration run run-live api up down logs migrate seed clean compose-up
+.PHONY: help install test test-integration run run-cli run-live run-dashboard api up down logs migrate seed clean
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -29,18 +47,17 @@ install: ## Cria o venv e instala as dependências (modo dev)
 test: ## Roda a suíte de testes
 	$(VENV_PY) -m pytest
 
-# --- Execução / entrega (Docker Compose) ---
+# --- Execução: CLI (venv + só o MySQL em container — não usa a API) ---
+#
+# A CLI é um adapter separado que chama a lógica de negócio direto, em
+# processo — não faz requisição HTTP à API. Por isso só precisa do MySQL.
 
-COMPOSE := docker compose
-# Alvos rodados do host (venv) contra o container publicam o MySQL em 127.0.0.1
-# (o default MOTOR_DB_HOST=db só resolve na rede interna do Compose — Fatia 8).
-HOST_DB := MOTOR_DB_HOST=127.0.0.1
-TEST_DB_URL := mysql+pymysql://motor:motor@127.0.0.1:3306/motor_cambial
+install test migrate run run-live api test-integration: SHELL := $(RECIPE_SHELL)
 
 up: ## Sobe o MySQL e espera ficar healthy
 	$(COMPOSE) up -d --wait db
 
-down: ## Derruba o container (mantém o volume de dados)
+down: ## Derruba todos os containers (mantém o volume de dados)
 	$(COMPOSE) down
 
 logs: ## Acompanha os logs do MySQL
@@ -50,25 +67,29 @@ migrate: up ## Sobe o MySQL (se preciso) e aplica o schema (criar_schema)
 	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.outbound.persistence.migrate
 
 test-integration: up ## Sobe o MySQL (se preciso) e roda os testes de integração
-	MOTOR_TEST_DB_URL=$(TEST_DB_URL) $(VENV_PY) -m pytest -m integration
+	$(SET_TEST_DB_URL) $(VENV_PY) -m pytest -m integration
 
 seed: ## Confirma a presença da massa de dados de exemplo (data/exposicoes.json)
 	@test -f data/exposicoes.json && echo "data/exposicoes.json presente." || \
 		(echo "data/exposicoes.json ausente." && exit 1)
 
-run: migrate ## Sobe o MySQL, aplica o schema e roda a CLI uma vez com os defaults (cache-first)
+run: migrate ## CLI: sobe o MySQL, aplica o schema e consolida uma vez (cache-first)
 	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.inbound.cli.app
+
+run-cli: run ## Alias de `run` — nome simétrico a `run-dashboard`
 
 run-live: migrate ## Como `run`, mas consulta PTAX e Frankfurter ao vivo (ignora o cache)
 	$(HOST_DB) $(VENV_PY) -m motor_cambial.adapters.inbound.cli.app --live
 
-api: migrate ## Sobe o MySQL, aplica o schema e serve a API (uvicorn do venv)
+api: migrate ## Serve só a API do venv (dev), sem o container do backend
 	$(HOST_DB) $(VENV_PY) -m uvicorn motor_cambial.adapters.inbound.api.app:app --port 8000
 
-compose-up: ## Sobe MySQL + backend em containers (docker compose up --build --wait)
+# --- Execução: Dashboard (db + API + frontend, tudo em containers) ---
+
+run-dashboard: ## Dashboard: sobe db + API + frontend em containers (:8080, API :8000)
 	$(COMPOSE) up -d --build --wait
 
-clean: ## Derruba o container COM o volume e limpa caches locais
+clean: ## Derruba os containers COM o volume e limpa caches locais
 	$(COMPOSE) down -v
 	rm -rf .pytest_cache .ruff_cache
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

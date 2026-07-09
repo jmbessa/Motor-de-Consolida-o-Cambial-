@@ -32,41 +32,28 @@ domain`, domínio puro, sem I/O): CLI e API são adapters *inbound* irmãos sobr
 
 | Ferramenta | Para quê | Observação |
 |---|---|---|
-| **Docker** | Rodar o MySQL (persistência) | Inicie o Docker Desktop **antes** de `make run`/`make up`. |
+| **Docker** | Rodar o MySQL (persistência) | Inicie o Docker Desktop **antes** de `make run-cli`/`make run-dashboard`. |
 | **Python 3.12+** | Rodar a aplicação (venv) | — |
 | **Make** | Porta de entrada única | Padrão em Linux/macOS; no Windows, disponível via Git Bash, Chocolatey ou WSL. |
 
-> Dois caminhos de execução: o **diferencial** roda tudo em containers (`docker compose up` —
-> db + API + dashboard); o **núcleo** (CLI e testes) roda do **venv local** contra o MySQL em
-> container. Ambos abaixo.
+> Duas formas de executar, **ambas via `make`** — e você pode rodar as duas **ao mesmo tempo**
+> (ver [Rodando os dois ao mesmo tempo](#rodando-os-dois-ao-mesmo-tempo)): `make run-cli` (só
+> precisa do MySQL — a CLI chama a lógica de negócio direto, em processo, **sem** passar pela
+> API) e `make run-dashboard` (db + API + frontend, tudo em containers). Ambos abaixo.
 
 ---
 
 ## Rodar em menos de 5 minutos
 
-### Caminho A — Dashboard completo (diferencial, tudo em containers)
+### `make run-cli` — CLI (venv; só precisa do MySQL)
 
 ```bash
-docker compose up -d --build   # sobe db + API + dashboard
+make install     # cria o venv (.venv) e instala as dependências
+make run-cli      # sobe o MySQL (Docker), aplica o schema e roda a CLI com os defaults
 ```
 
-Abra **http://localhost:8080** — escolha a data, clique **Consolidar** e leia os KPIs, a matriz
-de materialidade e a tabela com drill-down. A API fica em **http://localhost:8000** (Swagger
-interativo em **http://localhost:8000/docs**). Encerrar: `docker compose down`.
-
-> **Primeira execução (máquina fria):** baixa as imagens `mysql:8.0` e `nginx:alpine` e instala
-> as deps do backend — 1–3 min conforme a rede; as execuções seguintes são rápidas. Se algo
-> local já ocupa as portas `3306`/`8000`/`8080`, libere-as antes.
-
-### Caminho B — CLI (núcleo, via venv)
-
-```bash
-make install    # cria o venv (.venv) e instala as dependências
-make run         # sobe o MySQL (Docker), aplica o schema e roda a CLI com os defaults
-```
-
-`make run` imprime o **relatório no console** e grava o **JSON completo** em
-`data/output/consolidacao_<data>.json`.
+Imprime o **relatório no console** e grava o **JSON completo** em
+`data/output/consolidacao_<data>.json`. (`make run` é um alias do mesmo alvo.)
 
 **Prova instantânea, sem Docker** (valida o núcleo de cálculo/conversão):
 
@@ -76,6 +63,34 @@ make test        # 313 testes unitários (~1s), sem rede nem banco
 
 Um exemplo de saída já vem versionado em [`examples/`](examples/), para inspeção sem rodar nada.
 
+### `make run-dashboard` — Dashboard completo (diferencial, tudo em containers)
+
+```bash
+make run-dashboard   # sobe db + API + frontend em containers (docker compose up --build --wait)
+```
+
+Abra **http://localhost:8080** — escolha a data, clique **Consolidar** e leia os KPIs, a matriz
+de materialidade e a tabela com drill-down. A API fica em **http://localhost:8000** (Swagger
+interativo em **http://localhost:8000/docs**). Encerrar: `make down`.
+
+> **Primeira execução (máquina fria):** baixa as imagens `mysql:8.0` e `nginx:alpine` e instala
+> as deps do backend — 1–3 min conforme a rede; as execuções seguintes são rápidas. Se algo
+> local já ocupa as portas `3306`/`8000`/`8080`, libere-as antes.
+
+### Rodando os dois ao mesmo tempo
+
+**Sim, dá para rodar `make run-cli` enquanto o `make run-dashboard` está de pé** — sem conflito:
+a CLI **não abre porta nenhuma** (não é um servidor), e os dois caminhos apontam para o **mesmo
+MySQL** (o da Fatia 8's `docker-compose.yml`), então uma consolidação feita pela CLI já aparece
+para quem consultar a API/dashboard pela mesma `(data, hash_conjunto)` — não são bancos
+separados. `make up`/`make migrate` (que `run-cli` usa por trás) são idempotentes: se o
+container já estiver de pé (por causa do dashboard), eles só confirmam que está saudável, sem
+reiniciar nada.
+
+**Única ressalva:** não rode `make api` (serve a API do venv, fora de container, na porta
+`8000`) enquanto `make run-dashboard` também estiver de pé — os dois disputariam a mesma porta.
+Use `make api` só quando o dashboard **não** estiver rodando (ex.: para depurar a API isolada).
+
 ---
 
 ## Modo live vs. cache
@@ -84,10 +99,10 @@ O enunciado permite cache local, mas exige um **modo live demonstrável**. Ambos
 
 | Comando | Comportamento |
 |---|---|
-| `make run` | **Cache-first**: na 1ª execução bate nas APIs reais e popula `data/cache/`; nas seguintes serve do cache (rápido, offline). |
+| `make run-cli` | **Cache-first**: na 1ª execução bate nas APIs reais e popula `data/cache/`; nas seguintes serve do cache (rápido, offline). |
 | `make run-live` | **Sempre ao vivo**: ignora o cache e consulta PTAX e Frankfurter a cada execução (`--live`). |
 
-Como `data/cache/` não é versionado, a **primeira** `make run` de um checkout limpo já
+Como `data/cache/` não é versionado, a **primeira** `make run-cli` de um checkout limpo já
 consome as duas APIs de verdade.
 
 ---
@@ -158,7 +173,7 @@ taxa, se houve fallback e a defasagem em dias).
 ## API REST e dashboard (diferencial)
 
 Além da CLI, o pipeline é exposto por uma **API REST** (FastAPI) e um **dashboard** que a
-consome. `docker compose up -d --build` sobe os três containers; então:
+consome. `make run-dashboard` sobe os três containers; então:
 
 - **Dashboard** — http://localhost:8080. Cabeçalho com data + toggle ao vivo/cache + Consolidar;
   KPIs (exposição total, alertas, maior divergência); **matriz de materialidade** (impacto R$ ×
@@ -173,7 +188,9 @@ consome. `docker compose up -d --build` sobe os três containers; então:
 | `GET` | `/consolidacoes/{data}/{hash}/historico` | Trilha append-only de reprocessamentos. |
 | `GET` | `/health` | Status do serviço. |
 
-Para servir só a API do venv (dev): `make api` (uvicorn em :8000). CORS habilitado para o front.
+Para servir só a API do venv (dev, fora de container): `make api` (uvicorn em :8000) — **não**
+rode junto com `make run-dashboard` (conflito de porta 8000; ver
+[Rodando os dois ao mesmo tempo](#rodando-os-dois-ao-mesmo-tempo)). CORS habilitado para o front.
 
 ---
 
