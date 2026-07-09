@@ -1,0 +1,19 @@
+# Mantém o contexto de build enxuto (o Dockerfile só COPIA pyproject.toml + src).
+# Acelera `docker compose up --build` (requisito "roda em < 5 min") e evita
+# vazar venv/segredos/lixo para o contexto.
+.venv/
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+data/
+docs/
+examples/
+tests/
+.claude/
+.superpowers/
+*.pdf
+*.md
+.env

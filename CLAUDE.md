@@ -55,13 +55,13 @@ Toda funcionalidade do projeto passa **obrigatoriamente** por três fases, nesta
 ## Stack e arquitetura (decidido)
 
 - **Linguagem:** Python 3.12+ (`Decimal` para dinheiro — nunca `float`).
-- **Bibliotecas (em uso):** `pydantic`/`pydantic-settings` (modelagem/normalização/config), `httpx` (HTTP com timeout), `SQLAlchemy` + `PyMySQL` (persistência), `typer` (CLI), `pytest` (TDD). `FastAPI` + `uvicorn` seriam a base da API REST — diferencial não implementado.
-- **Entrega (estado atual):** CLI + relatório de console + JSON exportado + persistência MySQL — **implementado**. API REST + front-end web são **diferencial não implementado** (planejados como Fatia 8; o enunciado trata front-end como diferencial, não requisito).
+- **Bibliotecas (em uso):** `pydantic`/`pydantic-settings` (modelagem/normalização/config), `httpx` (HTTP com timeout), `SQLAlchemy` + `PyMySQL` (persistência), `typer` (CLI), `FastAPI` + `uvicorn` (API REST), `pytest` (TDD). Front-end em HTML/CSS/JS puro servido por **nginx** (sem deps de build).
+- **Entrega:** CLI + relatório de console + JSON exportado + persistência MySQL (núcleo) **e** o diferencial da Fatia 8 — **API REST** (FastAPI) + **dashboard** web (nginx) que a consome — todos **implementados**. O enunciado trata front-end como diferencial, não requisito.
 - **Arquitetura:** **monólito modular** com estilo **Hexagonal (Ports & Adapters)**. Regra de dependência inviolável: `adapters → application → domain`; o **domínio é puro** (sem I/O, sem framework) e não conhece as bordas. Ports (interfaces `Protocol`) são definidas em termos do domínio; adapters as implementam. DI manual no `composition_root.py`. Microsserviços são fora de escopo (over-engineering para o prazo e prejudica o "roda em < 5 min").
-- **Execução (estado atual):** o **MySQL roda em container** (Docker Compose); a **aplicação roda do venv local** orquestrada pelo `Makefile` (`make install` + `make run`). O `README.md` documenta esse caminho e roda em < 5 min. O `docker compose up` de **caminho único com três containers** (backend + frontend + MySQL) é o **objetivo da Fatia 8** (diferencial), ainda não implementado.
-- **Entrypoint:** `Makefile` como porta de entrada única. Alvos de dev (`make install`, `make test`) usam o venv; `make up`/`down`/`logs` orquestram o container MySQL; `make migrate`/`run`/`run-live`/`seed`/`test-integration` combinam o MySQL (container) com a app (venv). `make run` sobe o MySQL, aplica o schema e roda a CLI uma vez com os defaults (cache-first); `make run-live` faz o mesmo consultando as APIs ao vivo.
+- **Execução:** dois caminhos, ambos via `make`, e que podem rodar **simultaneamente** (a CLI não abre porta e compartilha o mesmo MySQL da Fatia 8 — ver README). **Diferencial:** `make run-dashboard` (== `docker compose up -d --build --wait`) sobe **três containers** (db + backend/API + frontend/nginx) — dashboard em `:8080`, API em `:8000` (Swagger em `/docs`). **Núcleo:** `make install` + `make run-cli` rodam a CLI do **venv local** contra o MySQL em container (só precisa do MySQL — a CLI não chama a API). `make api` serve só a API do venv (dev; não rodar junto com `run-dashboard`, mesma porta). Ambos documentados no `README.md` (< 5 min).
+- **Entrypoint:** `Makefile` como porta de entrada única. Alvos de dev (`make install`, `make test`) usam o venv; `make up`/`down`/`logs` orquestram os containers; `make migrate`/`run-cli`(alias `run`)/`run-live`/`api`/`test-integration` combinam o MySQL (container) com a app (venv); `make run-dashboard` sobe os 3 containers. No Windows, esses alvos forçam `SHELL := cmd.exe` de forma determinística (Makefile documenta o porquê — evita depender de sh.exe/Git Bash estar no PATH de quem chama o make).
 - **Persistência:** **MySQL 8** em container próprio como store de registro (idempotência via `UPSERT`/chave natural `data_referência + hash_do_conjunto`; reprocessamento por data), acessado por adapter atrás do port `resultado_repository`. Driver: **SQLAlchemy Core + PyMySQL**. Schema criado por `create_all` (migrações versionadas/Alembic fora de escopo) + healthcheck/espera do DB no compose. JSON exportado em `data/output/` (com um exemplo versionado em `examples/`) permanece como relatório/entregável (requisito de exemplo de output).
-- **Front-end (diferencial não implementado — Fatia 8):** planejado como HTML + JS puro em container próprio (servidor estático leve, ex. nginx) consumindo a API do backend, com **CORS** habilitado.
+- **Front-end (diferencial implementado — Fatia 8b):** dashboard em HTML + CSS + JS puro (sem deps; gráficos SVG hand-rolled) servido por **nginx** em container próprio, consumindo a API com **CORS** habilitado. Matriz de materialidade + comparação PTAX×Frankfurter + tabela com drill-down de rastreabilidade.
 - **Configuração:** defaults em arquivo versionado (thresholds de alerta, timeouts, modo live/cache) sobrescritíveis por env var / flag de CLI. Atende o requisito "limite configurável".
 
 ## Escopo — fora (explícito)
@@ -76,13 +76,13 @@ src/motor_cambial/
   ports/         # interfaces: cotacao_provider, resultado_repository
   application/   # use_cases/: consolidar_exposicoes, reprocessar_por_data
   adapters/
-    inbound/     # cli/ (api/ = Fatia 8, não implementado)
+    inbound/     # cli/, api/ (FastAPI)
     outbound/    # ptax/, frankfurter/, cache/, persistence/
-  config.py      # thresholds (alerta configuravel), timeouts, modo live/cache
+  config.py      # thresholds (alerta configuravel), timeouts, modo live/cache, CORS
   composition_root.py
 tests/           # unit (dominio, alvo do TDD) | integration (APIs + MySQL reais, opt-in)
 examples/        # exemplo de output versionado
-frontend/        # front-end web (Fatia 8, não implementado)
+frontend/        # dashboard estático (HTML/CSS/JS + nginx) — Fatia 8b
 data/            # exposicoes.json (entrada) + output/ (resultados, gerado) + cache/ (gerado)
 ```
 

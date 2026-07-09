@@ -230,13 +230,17 @@ obrigatória); os demais são built-in do Claude Code.
 
 Escolhas de escopo, conscientes para o prazo de 5 dias:
 
-- **CLI-only.** A CLI cumpre todo o entregável funcional do enunciado. Uma **API REST** e um
-  **front-end web** (explicitamente um "diferencial", não requisito) ficaram de fora para focar
-  em decisões bem justificadas no núcleo. **Com mais tempo:** exporia o pipeline por FastAPI e um
-  front que consome a API, com gráficos de divergência e posição por natureza.
-- **Só o MySQL em container.** A app roda do venv local. **Com mais tempo:** conteinerizaria a
-  aplicação para um `docker compose up` de caminho único, e adicionaria um modo de demo **sem
-  Docker** (ex.: SQLite) para reduzir o atrito do "roda em < 5 min".
+- **CLI + API REST + dashboard (diferencial completo).** A CLI cumpre o entregável funcional; a
+  **API REST** (FastAPI, adapter inbound irmão — `make api`, Swagger em `/docs`) e um **dashboard
+  de tesouraria** que a consome foram implementados e sobem juntos via `docker compose up`
+  (db + backend + frontend). Front-end é "diferencial", não requisito do enunciado.
+- **Ciclo de vida dos clients HTTP na API.** Os providers (com os `httpx.Client`) são criados
+  **uma vez** no `criar_app` e compartilhados por todas as requisições; só o envelope de cache é
+  refeito por requisição (barato, preservando o `modo_live` por requisição). **Com mais tempo:**
+  um `lifespan` fechando os clients no shutdown (hoje o SO os recupera na saída do processo).
+- **Docker ainda é pré-requisito** (para o MySQL, em qualquer um dos dois caminhos de execução —
+  ver README). **Com mais tempo:** um modo de demo **sem Docker** (ex.: SQLite) para eliminar
+  esse pré-requisito e reduzir ainda mais o atrito do "roda em < 5 min".
 - **Schema por `create_all`**, não migrações versionadas. **Com mais tempo:** Alembic, para
   evoluir o schema preservando a trilha de auditoria.
 - **Relatório de console detalhado por posição.** Cada exposição mostra o valor original e —

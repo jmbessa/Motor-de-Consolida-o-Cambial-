@@ -19,6 +19,7 @@ class Config(BaseSettings):
     cache_dir: Path = Path("data/cache")
     modo_live: bool = False
     janela_fallback_dias: int = 7
+    cors_origins: list[str] = ["*"]
 
     # Persistência (Fatia 6a/6b). Defaults apontam para o serviço `db` do compose;
     # a senha é um default de desenvolvimento, sobrescrivível por MOTOR_DB_PASSWORD.

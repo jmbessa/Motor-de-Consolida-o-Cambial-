@@ -25,9 +25,9 @@ adversarial**. Ver `CLAUDE.md` e o skill de projeto.
 | `superpowers:receiving-code-review` | 3 — Revisão | Incorporar feedback com rigor técnico (verificar, não concordar por reflexo) |
 | `superpowers:verification-before-completion` | 3 — Revisão | Exigir evidência (testes rodando) antes de declarar "pronto" |
 | `superpowers:systematic-debugging` | qualquer | Depurar falhas de forma sistemática |
-| `frontend-design` | Fatia 8 — **não acionada** | Design intencional do dashboard (front-end é diferencial não implementado) |
-| `dataviz` | Fatia 8 — **não acionada** | Gráficos de divergência PTAX×Frankfurter, top 3, posição líquida (idem) |
-| `context7` (MCP) | qualquer | Docs atualizadas de pydantic, SQLAlchemy, PyMySQL, httpx, typer, Docker |
+| `frontend-design` | Fatia 8b-ii | **Acionada** — design intencional do dashboard (paleta/tipografia/layout específicos do domínio de tesouraria, não um template genérico) |
+| `dataviz` | — **não acionada** | Os gráficos (matriz de materialidade, barras PTAX×Frankfurter) foram construídos como SVG hand-rolled dentro do `frontend-design`, sem invocar este skill específico |
+| `context7` (MCP) | qualquer | Docs atualizadas de pydantic, SQLAlchemy, PyMySQL, httpx, typer, FastAPI, Docker |
 
 ## Agentes usados
 
@@ -67,7 +67,16 @@ agente `lv10-dev` (revisão adversarial) — se repete; abaixo, os destaques por
 - **Fatia 7 — CLI + relatório:** `brainstorming`; `writing-plans`;
   `subagent-driven-development` (implementer + reviewer por tarefa); `test-driven-development`;
   validação ao vivo (APIs + MySQL reais); `lv10-dev` + `requesting-code-review` (revisão final).
-- **Fatia 8 — API REST + front-end:** **não implementada** (diferencial; ver `README.md`).
 - **Fatia 9 — Documentação (README, exemplo de output, decisões):** `brainstorming`;
   `writing-plans` (spec); investigação por subagentes (auditoria de cobertura do enunciado);
   validação ao vivo do README (< 5 min); `lv10-dev`.
+- **Fatia 8a — API REST (diferencial):** `brainstorming` (decisão de decompor 8a/8b, contrato dos
+  endpoints); `writing-plans`; `subagent-driven-development` (implementer + reviewer por tarefa);
+  validação ao vivo (POST/GET reais contra APIs + MySQL); `lv10-dev`.
+- **Fatia 8b-i — Backend em container + fix do ciclo de vida dos providers:** `brainstorming`
+  (como preservar `modo_live` por requisição sem vazar `httpx.Client`); `writing-plans`;
+  `subagent-driven-development`; validação ao vivo (`docker compose up` real); `lv10-dev`.
+- **Fatia 8b-ii — Dashboard de tesouraria (diferencial):** `brainstorming` (dashboard híbrido:
+  KPIs + matriz de materialidade + comparação PTAX×Frankfurter + drill-down); `frontend-design`
+  (construção do dashboard); validação visual real via `claude-in-chrome` (screenshot, interação,
+  sem erro de console); `lv10-dev`.

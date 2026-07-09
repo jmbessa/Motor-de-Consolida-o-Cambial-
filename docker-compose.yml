@@ -1,5 +1,5 @@
-# Infra de dados do Motor de Consolidação Cambial.
-# Fatia 6b: apenas o container MySQL. Backend/frontend chegam na Fatia 8.
+# Infra do Motor de Consolidação Cambial: db + backend + frontend.
+# `docker compose up -d --build` sobe os três; dashboard em http://localhost:8080.
 services:
   db:
     image: mysql:8.0
@@ -23,6 +23,42 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
+
+  backend:
+    build: .
+    container_name: motor_cambial_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+    environment:
+      MOTOR_DB_HOST: db
+      MOTOR_DB_USER: ${MYSQL_USER:-motor}
+      MOTOR_DB_PASSWORD: ${MYSQL_PASSWORD:-motor}
+      MOTOR_DB_NAME: ${MYSQL_DATABASE:-motor_cambial}
+      MOTOR_MODO_LIVE: ${MOTOR_MODO_LIVE:-false}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    build: ./frontend
+    container_name: motor_cambial_frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   mysql_data:
