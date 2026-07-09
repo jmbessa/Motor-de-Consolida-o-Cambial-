@@ -52,6 +52,11 @@ make install     # cria o venv (.venv) e instala as dependências
 make run-cli      # sobe o MySQL (Docker), aplica o schema e roda a CLI com os defaults
 ```
 
+`make install` é necessário aqui porque a CLI roda **no seu host**, via um venv Python local —
+sem ele, não há `python` local com as dependências instaladas. (O dashboard, abaixo, **não**
+precisa disso: ele roda inteiramente em containers, e o próprio `Dockerfile` do backend instala
+as dependências **dentro da imagem** durante o build — é o Docker, não o seu host, quem instala.)
+
 Imprime o **relatório no console** e grava o **JSON completo** em
 `data/output/consolidacao_<data>.json`. (`make run` é um alias do mesmo alvo.)
 
